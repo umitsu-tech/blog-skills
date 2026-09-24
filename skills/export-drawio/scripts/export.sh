@@ -7,13 +7,15 @@
 # ファイルを省略すると、カレントディレクトリ以下の .drawio をすべて書き出す
 # （.git と node_modules の中は除く）。出力は入力と同じ場所に拡張子を .png に
 # 替えた名前で置く。既定は白背景（余白 20px）で、--transparent のときだけ透過。
-# 書き出しに失敗したとき（終了コードが 0 以外、または PNG が最後まで書けていない）は、
-# 既存の PNG を置き換えない。
 #
-# 書き出したあと PNG のカラータイプ（アルファの有無）を読み、背景が指定どおりかを
-# 1 行ずつ報告する。draw.io の場所は環境変数 DRAWIO_BIN で差し替えられる。
+# 書き出しは作業用の一時ファイルに行い、次の確認がすべて通ったときだけ既存の PNG を
+# 置き換える。どれかが通らなければ既存の PNG には触らず、NG として報告する。
+#   - draw.io の終了コードが 0
+#   - PNG が空でなく、最後まで書けている（先頭の署名と末尾の IEND チャンク）
+#   - PNG のカラータイプ（アルファの有無）が、指定した背景（白 / 透過）と合っている
+# draw.io の場所は環境変数 DRAWIO_BIN で差し替えられる。
 #
-# 終了コード: 0 すべて成功 / 1 失敗または背景の不一致あり / 2 使い方の誤り・draw.io が無い
+# 終了コード: 0 すべて成功 / 1 置き換えなかったファイルがある / 2 使い方の誤り・draw.io が無い
 
 set -u
 
@@ -117,8 +119,8 @@ for src do
 
 	out="${src%.drawio}.png"
 	# 出力と同じディレクトリに mktemp で作業ディレクトリを作り、そこへ書き出してから置き換える。
-	# draw.io は書き出しに失敗しても終了コード 0 を返すことがあるので、終了コードと PNG の中身の
-	# 両方を確かめ、どちらかがだめなら既存の PNG には触らない
+	# draw.io は書き出しに失敗しても終了コード 0 を返すことがあるので、終了コード・PNG の中身・
+	# 背景をすべて確かめ、どれかがだめなら既存の PNG には触らない
 	if ! workdir=$(mktemp -d "$(dirname "$out")/.export-drawio.XXXXXX"); then
 		workdir=""
 		printf 'NG  %s  作業用のディレクトリを作れません\n' "$src"
@@ -139,6 +141,19 @@ for src do
 		status=1
 		continue
 	fi
+	# 背景（アルファの有無）も置き換える前に一時ファイルで確かめる
+	ctype=$(png_color_type "$tmp")
+	case $ctype in
+	4 | 6) bg="透過（アルファあり）" alpha=1 ;;
+	0 | 2 | 3) bg="白背景（アルファなし）" alpha=0 ;;
+	*) bg="不明（PNG として読めません）" alpha="" ;;
+	esac
+	if [ -z "$alpha" ] || [ "$alpha" -ne "$transparent" ]; then
+		cleanup
+		printf 'NG  %s  書き出した PNG が%sで、指定した背景と違います（既存の PNG は置き換えていません）\n' "$src" "$bg"
+		status=1
+		continue
+	fi
 	if ! mv -f "$tmp" "$out"; then
 		cleanup
 		printf 'NG  %s  %s を置き換えられません\n' "$src" "$out"
@@ -146,19 +161,7 @@ for src do
 		continue
 	fi
 	cleanup
-
-	ctype=$(png_color_type "$out")
-	case $ctype in
-	4 | 6) bg="透過（アルファあり）" alpha=1 ;;
-	0 | 2 | 3) bg="白背景（アルファなし）" alpha=0 ;;
-	*) bg="不明（PNG として読めません）" alpha="" ;;
-	esac
-	if [ -n "$alpha" ] && [ "$alpha" -eq "$transparent" ]; then
-		printf 'OK  %s  %s\n' "$out" "$bg"
-	else
-		printf 'OK  %s  %s  ⚠ 指定した背景と違います\n' "$out" "$bg"
-		status=1
-	fi
+	printf 'OK  %s  %s\n' "$out" "$bg"
 done
 
 exit "$status"
