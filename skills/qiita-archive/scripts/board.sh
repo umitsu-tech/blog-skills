@@ -14,7 +14,9 @@
 #   --dry-run      書き換えず、差分だけを表示する
 #
 # 完了ログの文面（何をどう書くか）は決めない。呼び出し側が決めて渡す。
-# 終了コード: 0 成功 / 1 対象の行や見出しが見つからない・曖昧 / 2 使い方の誤り
+# 書き換えは、board.md の実体と同じディレクトリに mktemp で作った一時ファイルへ書いてから
+# mv で置き換える。board.md がシンボリックリンクなら、リンクは残してリンク先を置き換える。
+# 終了コード: 0 成功 / 1 対象の行や見出しが見つからない・曖昧、書き込みの失敗 / 2 使い方の誤り
 
 set -u
 
@@ -25,6 +27,11 @@ usage() {
 die() {
 	printf '%s\n' "$1" >&2
 	exit 2
+}
+
+fail() {
+	printf '%s\n' "$1" >&2
+	exit 1
 }
 
 board="" row="" row_set=0 log_text="" log_set=0 log_date="" summary="" summary_set=0 dry=0
@@ -97,9 +104,29 @@ if [ "$summary_set" -eq 1 ]; then
 	fi
 fi
 
-tmp="${TMPDIR:-/tmp}/board-sh.$$"
-trap 'rm -f "$tmp"' 0
+# board.md がシンボリックリンクなら、書き換える先はリンク先の実体
+target=$board
+hops=0
+while [ -L "$target" ]; do
+	hops=$((hops + 1))
+	[ "$hops" -le 20 ] || fail "シンボリックリンクをたどりきれません: ${board}"
+	link=$(readlink "$target") || fail "シンボリックリンクを読めません: ${target}"
+	case $link in
+	/*) target=$link ;;
+	*) target="$(dirname "$target")/${link}" ;;
+	esac
+done
+
+# 一時ファイルは mktemp で実体と同じディレクトリに作る（同じファイルシステム内の mv で置き換えるため）
+tmp=""
+cleanup() {
+	[ -z "$tmp" ] || rm -f "$tmp"
+}
+trap cleanup 0
 trap 'exit 1' HUP INT TERM
+tmp=$(mktemp "$(dirname "$target")/.board.md.XXXXXX") || fail "一時ファイルを作れません: $(dirname "$target")"
+# 権限を引き継ぐため、元のファイルを写してから中身を書き直す
+cp -p "$target" "$tmp" || fail "一時ファイルに写せません: ${tmp}"
 
 BOARD_ROW=$row BOARD_ENTRY=$entry BOARD_HEADER=$header BOARD_OUT=$tmp awk '
 function fail(msg) { print msg | "cat 1>&2"; exit 1 }
@@ -155,18 +182,21 @@ END {
 			if (i + 1 <= n && line[i + 1] != "") print "" > out
 		}
 	}
-	close(out)
+	if (close(out) != 0) fail("一時ファイルに書き込めません: " out)
 
 	if (row) print "削除した行 (L" row "): " line[row]
 	if (entry != "") print "完了ログに追加: " entry
 	if (hdr) print "書き換えた行 (L" hdr "): " header
 }
-' "$board" || exit 1
+' "$target" || exit 1
+[ -s "$tmp" ] || fail "書き換えた結果が空になったため、board.md を置き換えません"
 
 if [ "$dry" -eq 1 ]; then
 	diff -u "$board" "$tmp"
 	echo "（--dry-run のため書き換えていません）"
-else
-	# mv ではなく上書きにする。シンボリックリンクや権限をそのまま保つため
-	cat "$tmp" >"$board"
+	exit 0
 fi
+
+# 同じディレクトリ内の mv で置き換えるので、途中で失敗しても board.md は元のまま残る
+mv -f "$tmp" "$target" || fail "board.md を置き換えられません: ${target}"
+tmp=""
