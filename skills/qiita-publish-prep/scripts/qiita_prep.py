@@ -496,7 +496,7 @@ def analyze(env: Env, draft: Path, slug_override=None):
     if not has_fm:
         issues.append("frontmatter がありません")
     if not slug:
-        issues.append("slug がありません → SKILL.md の Step 1 で命名して --slug で渡す")
+        issues.append("slug がありません → 記事から命名して apply の --slug で渡す")
     elif not SLUG_RE.match(slug):
         issues.append(f"slug が [a-z0-9-] 以外を含みます: {slug}")
     if not fm.get("title"):
