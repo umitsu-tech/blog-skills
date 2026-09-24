@@ -47,6 +47,8 @@ python3 skills/qiita-publish-prep/scripts/qiita_prep.py apply ~/work/articles/dr
 
 `--bucket` と `--cdn-domain` は `apply` で S3 同期をするときだけ必須です。`inspect` や `--skip-sync` なら省略できます。
 
+シェルスクリプト（`export-drawio/scripts/export.sh`、`qiita-archive/scripts/board.sh`、`review-blog/scripts/pick-references.sh`）は POSIX sh で書いてあり、設定値は使わず引数だけで動きます。使い方は `--help` で出ます。
+
 ## 開発中に試す
 
 リポジトリをそのままプラグインとして読み込めます。

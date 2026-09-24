@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "blog-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ブログ執筆スキル一式。投稿前レビュー（review-blog）、Qiita 投稿準備（qiita-publish-prep）、投稿後の後片付け（qiita-archive）、drawio 図の PNG 書き出し（export-drawio）",
   "author": {
     "name": "umitsu-tech",

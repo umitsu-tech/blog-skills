@@ -4,11 +4,20 @@
 
 ## 動き
 
-- 引数にファイルを指定すればそのファイルだけ、省略すればプロジェクト内の全 `.drawio` を対象にします
-- 3倍スケールで、入力ファイルと同じディレクトリに `.png` を書き出します
+書き出しは `scripts/export.sh`（POSIX sh）が行い、スキルは結果の PNG を目で確かめて報告します。
+
+- 引数にファイルを指定すればそのファイルだけ、省略すればカレントディレクトリ以下の全 `.drawio` を対象にします（`.git` と `node_modules` の中は除く）
+- 3倍スケールで、入力ファイルと同じディレクトリに `.png` を書き出します。一時ファイルに書き出してから置き換えるので、失敗しても前の PNG は残ります
 - 既定は白背景（余白 20px）で、`--transparent` を付けたときだけ透過にします。透過 PNG は Discord や暗いテーマのビューアで読めないことがあるので、貼る先が決まっていなければ白背景にしておく方が無難です
-- 書き出した PNG を開いて、はみ出しや重なりが無いか目視してから報告します
+- スクリプトは書き出した PNG のカラータイプ（アルファの有無）を読み、背景が指定どおりかを1行ずつ報告します
+- スキルは書き出した PNG を開いて、はみ出しや重なりが無いか目視してから報告します
+
+スクリプトは単体でも動きます。
+
+```
+sh skills/export-drawio/scripts/export.sh [--transparent] [ファイル.drawio ...]
+```
 
 ## 必要なもの
 
-draw.io デスクトップアプリ（`brew install --cask drawio`）。`/opt/homebrew/bin/drawio` が無ければ `/Applications/draw.io.app/Contents/MacOS/draw.io` を直接呼びます。設定値は使いません。
+draw.io デスクトップアプリ（`brew install --cask drawio`）。`/opt/homebrew/bin/drawio`、`/Applications/draw.io.app/Contents/MacOS/draw.io`、PATH 上の `drawio` の順に探します。別の場所にあるときは環境変数 `DRAWIO_BIN` で指定します。設定値は使いません。
