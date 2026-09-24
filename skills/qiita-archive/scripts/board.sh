@@ -16,7 +16,10 @@
 # 完了ログの文面（何をどう書くか）は決めない。呼び出し側が決めて渡す。
 # 書き換えは、board.md の実体と同じディレクトリに mktemp で作った一時ファイルへ書いてから
 # mv で置き換える。board.md がシンボリックリンクなら、リンクは残してリンク先を置き換える。
-# 終了コード: 0 成功 / 1 対象の行や見出しが見つからない・曖昧、書き込みの失敗 / 2 使い方の誤り
+# 読み込みから置き換えまでは、実体の隣に作るロック（.<ファイル名>.lock ディレクトリ）で
+# 直列にする。ロックがあれば何もせずに止まる（--dry-run はロックを取らない）。
+# 終了コード: 0 成功 / 1 対象の行や見出しが見つからない・曖昧、書き込みの失敗
+#             2 使い方の誤り / 3 ほかの処理が更新中（ロックがある）
 
 set -u
 
@@ -117,14 +120,44 @@ while [ -L "$target" ]; do
 	esac
 done
 
-# 一時ファイルは mktemp で実体と同じディレクトリに作る（同じファイルシステム内の mv で置き換えるため）
-tmp=""
+dir=$(dirname "$target")
+base=$(basename "$target")
+lock="${dir}/.${base}.lock"
+
+# 終了時と中断時の片付け。途中で割り込まれないようシグナルを無視し、ロックは 1 回だけ外す
+tmp="" locked=0
 cleanup() {
+	trap '' HUP INT TERM
 	[ -z "$tmp" ] || rm -f "$tmp"
+	tmp=""
+	if [ "$locked" -eq 1 ]; then
+		locked=0
+		rmdir "$lock" 2>/dev/null
+	fi
 }
 trap cleanup 0
 trap 'exit 1' HUP INT TERM
-tmp=$(mktemp "$(dirname "$target")/.board.md.XXXXXX") || fail "一時ファイルを作れません: $(dirname "$target")"
+
+# 読み込みから置き換えまでをロックで直列にする（同時に動くと、後の mv が先の変更を消すため）。
+# mkdir の成功と locked=1 の間で中断されてロックが残らないよう、その間だけシグナルを無視する
+if [ "$dry" -eq 0 ]; then
+	trap '' HUP INT TERM
+	if mkdir "$lock" 2>/dev/null; then
+		locked=1
+	fi
+	trap 'exit 1' HUP INT TERM
+	if [ "$locked" -eq 0 ]; then
+		if [ -d "$lock" ]; then
+			printf '%s\n' "ほかの処理が board.md を更新中です（${lock} があります）。終わってからやり直してください。" \
+				"更新中の処理が無いのに残っている場合は、前の実行が強制終了した跡なので、中身を確かめてから rmdir で消してください。" >&2
+			exit 3
+		fi
+		fail "ロックを作れません: ${lock}"
+	fi
+fi
+
+# 一時ファイルは mktemp で実体と同じディレクトリに作る（同じファイルシステム内の mv で置き換えるため）
+tmp=$(mktemp "${dir}/.${base}.XXXXXX") || fail "一時ファイルを作れません: ${dir}"
 # 権限を引き継ぐため、元のファイルを写してから中身を書き直す
 cp -p "$target" "$tmp" || fail "一時ファイルに写せません: ${tmp}"
 
