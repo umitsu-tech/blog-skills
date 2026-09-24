@@ -1,28 +1,29 @@
 ---
 name: export-drawio
-description: プロジェクト内の .drawio ファイルを高解像度PNG（3倍スケール・白背景。--transparent で透過）にエクスポートします
-argument-hint: "[ファイルパス（省略時は全drawioファイル）] [--transparent]"
-allowed-tools: Bash, Glob, Read
+description: draw.io の図（.drawio）を、draw.io デスクトップアプリの CLI で 3 倍スケールの PNG に書き出します。既定は白背景で、--transparent を付けたときだけ透過にします。ファイルを指定しなければプロジェクト内の .drawio をすべて書き出します。
+when_to_use: 記事や README に貼る図を .drawio から PNG にしたいとき。「drawio を PNG にして」「図を書き出して」「drawio をエクスポートして」など。
+argument-hint: "[drawio ファイル（省略時はすべて）] [--transparent]"
+allowed-tools:
+  - Bash(sh *)
+  - Read
 ---
 
-# drawio → PNG エクスポート
-
-プロジェクト内の `.drawio` ファイルを draw.io CLI で高解像度PNGに変換する。
+# drawio を PNG に書き出す
 
 ## 手順
 
-1. 引数を解釈する
-   - ファイルパスが指定されていればそのファイルのみ、省略されていればプロジェクト内の全 `.drawio` ファイルを Glob で検索する
-   - `--transparent` が付いていれば透過背景、無ければ白背景（既定）。README や Discord に貼る図は白背景にする（透過だと暗い背景で読めない。2026-09-06 リュウキ指定）
-2. 各ファイルに対して以下のコマンドを実行する:
+1. 同梱のスクリプトで書き出します。ファイルと `--transparent` は、指定されたものだけを渡します。
+
+   ```bash
+   sh "${CLAUDE_PLUGIN_ROOT}/skills/export-drawio/scripts/export.sh" [--transparent] [ファイル.drawio ...]
    ```
-   # 白背景（既定）
-   /opt/homebrew/bin/drawio --export --format png --scale 3 --border 20 --output <出力先.png> <入力.drawio>
-   # 透過（--transparent 指定時）
-   /opt/homebrew/bin/drawio --export --format png --scale 3 --transparent --output <出力先.png> <入力.drawio>
-   ```
-   - 出力先は入力ファイルと同じディレクトリ、拡張子を `.png` に変更したもの
-   - スケール: 3倍。白背景のときは余白 20px
-   - `/opt/homebrew/bin/drawio` が無ければ `/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -s 3 -b 20 -o <出力先.png> <入力.drawio>` を使う（透過は `-t` を足す）
-3. 書き出したPNGを Read で開いて、はみ出しや重なりが無いか目視する
-4. エクスポート結果をユーザーに報告する（ファイル名、背景の種類、成功/失敗）。背景が意図どおりかは `sips -g hasAlpha <png>` で確認できる（白背景なら no）
+
+   - ファイルを省略すると、カレントディレクトリ以下の .drawio をすべて書き出します（.git と node_modules の中は除く）
+   - 出力は入力と同じディレクトリに、拡張子を .png に替えた名前で置きます。倍率は 3 倍です
+   - 既定は白背景（余白 20px）です。README や Discord に貼る図は白背景にします。透過 PNG は暗い背景で読めないことがあるので、`--transparent` は指定されたときだけ付けます
+   - スクリプトは 1 ファイル 1 行で `OK` / `NG` と背景の種類（PNG のアルファの有無）を出します。背景が指定と違うときは `⚠` が付きます
+   - draw.io が見つからないと止まります。デスクトップアプリのインストール（macOS なら `brew install --cask drawio`）を案内してください
+
+2. 書き出した PNG を Read で開き、文字のはみ出しや図形の重なりが無いかを見ます。
+
+3. 書き出したファイル、背景の種類、成否を報告します。見た目に問題があれば、どの図のどこかを添えます。
