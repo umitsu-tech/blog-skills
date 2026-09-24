@@ -7,6 +7,8 @@
 # ファイルを省略すると、カレントディレクトリ以下の .drawio をすべて書き出す
 # （.git と node_modules の中は除く）。出力は入力と同じ場所に拡張子を .png に
 # 替えた名前で置く。既定は白背景（余白 20px）で、--transparent のときだけ透過。
+# 書き出しに失敗したとき（終了コードが 0 以外、または PNG が最後まで書けていない）は、
+# 既存の PNG を置き換えない。
 #
 # 書き出したあと PNG のカラータイプ（アルファの有無）を読み、背景が指定どおりかを
 # 1 行ずつ報告する。draw.io の場所は環境変数 DRAWIO_BIN で差し替えられる。
@@ -79,6 +81,24 @@ png_color_type() {
 	od -An -tu1 -j25 -N1 "$1" 2>/dev/null | tr -d ' \n'
 }
 
+# PNG として最後まで書けているか。先頭の署名と、末尾の IEND チャンク（長さ 0 + "IEND" + CRC）を見る
+png_complete() {
+	[ "$(od -An -tx1 -N8 "$1" 2>/dev/null | tr -d ' \n')" = "89504e470d0a1a0a" ] &&
+		[ "$(tail -c 12 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "0000000049454e44ae426082" ]
+}
+
+# 書き出し用の作業ディレクトリ。終了時や中断時に消す
+workdir=""
+cleanup() {
+	if [ -n "$workdir" ]; then
+		rm -f "${workdir}/out.png"
+		rmdir "$workdir" 2>/dev/null
+		workdir=""
+	fi
+}
+trap cleanup 0
+trap 'exit 1' HUP INT TERM
+
 status=0
 for src do
 	case $src in
@@ -96,21 +116,36 @@ for src do
 	fi
 
 	out="${src%.drawio}.png"
-	# 一時ファイルに書き出してから置き換える。失敗しても前の PNG は残る
-	tmp="${src%.drawio}.export-$$.png"
+	# 出力と同じディレクトリに mktemp で作業ディレクトリを作り、そこへ書き出してから置き換える。
+	# draw.io は書き出しに失敗しても終了コード 0 を返すことがあるので、終了コードと PNG の中身の
+	# 両方を確かめ、どちらかがだめなら既存の PNG には触らない
+	if ! workdir=$(mktemp -d "$(dirname "$out")/.export-drawio.XXXXXX"); then
+		workdir=""
+		printf 'NG  %s  作業用のディレクトリを作れません\n' "$src"
+		status=1
+		continue
+	fi
+	tmp="${workdir}/out.png"
 	if [ "$transparent" -eq 1 ]; then
 		log=$("$bin" --export --format png --scale 3 --transparent --output "$tmp" "$src" </dev/null 2>&1)
 	else
 		log=$("$bin" --export --format png --scale 3 --border 20 --output "$tmp" "$src" </dev/null 2>&1)
 	fi
-	if [ ! -s "$tmp" ]; then
-		rm -f "$tmp"
-		printf 'NG  %s  書き出しに失敗しました\n' "$src"
+	rc=$?
+	if [ "$rc" -ne 0 ] || [ ! -s "$tmp" ] || ! png_complete "$tmp"; then
+		cleanup
+		printf 'NG  %s  書き出しに失敗しました（終了コード %s。既存の PNG は置き換えていません）\n' "$src" "$rc"
 		printf '%s\n' "$log" | sed -n '1,5s/^/    /p'
 		status=1
 		continue
 	fi
-	mv -f "$tmp" "$out"
+	if ! mv -f "$tmp" "$out"; then
+		cleanup
+		printf 'NG  %s  %s を置き換えられません\n' "$src" "$out"
+		status=1
+		continue
+	fi
+	cleanup
 
 	ctype=$(png_color_type "$out")
 	case $ctype in
