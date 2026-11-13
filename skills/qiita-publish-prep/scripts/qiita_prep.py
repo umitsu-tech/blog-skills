@@ -344,6 +344,21 @@ def transform(body: str, slug: str, url_for: dict):
         if m:
             warns.append(f"リンクカード化候補(単独行のインラインリンク): {i + 1}行目 {m.group(2)}")
 
+    # 5b) :::note の中の単独行 URL の警告(Qiita では note の中ではリンクカードにならない)
+    in_note = False
+    for i, line in enumerate(lines):
+        if mask[i]:
+            continue
+        if re.match(r"^\s*:::note\b", line):
+            in_note = True
+            continue
+        if in_note and re.match(r"^\s*:::\s*$", line):
+            in_note = False
+            continue
+        if in_note and re.match(r"^\s*https?://\S+\s*$", line):
+            warns.append(f":::note の中の単独行 URL は Qiita ではリンクカードになりません"
+                         f"(note の外に出すとカードになります): {i + 1}行目 {line.strip()}")
+
     # 6) 連続する空行を畳む(%% 除去や H1 削除の跡地。Markdown 上は等価)
     lines = collapse_blank_lines(lines, fence_mask(lines))
 
