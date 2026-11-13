@@ -572,7 +572,17 @@ def analyze(env: Env, draft: Path, slug_override=None):
 
 # ---------------------------------------------------------------------- 出力
 
+def missing_draft(args) -> bool:
+    """下書きが無ければ 1 行のエラーを出して True を返す(qiita_archive.py と同じ出し方)。"""
+    if Path(args.draft).expanduser().is_file():
+        return False
+    print(f"ERROR: 下書きが見つかりません: {args.draft}", file=sys.stderr)
+    return True
+
+
 def cmd_inspect(env: Env, args):
+    if missing_draft(args):
+        return 1
     a = analyze(env, Path(args.draft).expanduser().resolve(), args.slug)
     if args.json:
         payload = {k: v for k, v in a.items() if k not in ("fm_text", "body", "resolved")}
@@ -637,6 +647,8 @@ def run(cmd, dry, check=True):
 
 
 def cmd_apply(env: Env, args):
+    if missing_draft(args):
+        return 1
     draft = Path(args.draft).expanduser().resolve()
     dry = args.dry_run
     renames = dict(r.split("=", 1) for r in args.rename)
