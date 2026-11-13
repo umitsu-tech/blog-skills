@@ -1,6 +1,6 @@
 ---
 name: qiita-publish-prep
-description: 記事リポジトリの下書きを Qiita CLI 用に変換し、Qiita CLI ワークスペースの public/<slug>.md に出力します。画像は S3 + CloudFront に同期して Markdown 内のパスを CDN の URL に置き換え、Wikilink・Callout・Obsidian のコメント・frontmatter を Qiita の書式に直します。投稿（npx qiita publish）はしません。
+description: 記事リポジトリの下書きを Qiita CLI 用に変換し、Qiita CLI ワークスペースの public/<slug>.md に出力します。画像は S3 + CloudFront に同期して Markdown 内のパスを CDN の URL に置き換え、Wikilink・Callout・Obsidian と HTML のコメント・frontmatter を Qiita の書式に直します。投稿（npx qiita publish）はしません。
 when_to_use: 下書きを Qiita に限定共有で投稿する前の準備と、公開済みの記事を直して出力し直すとき。「Qiita 用に変換して」「投稿の準備をして」「Qiita に出せる形にして」など。本公開のあとの後片付けは qiita-archive が受け持ちます。
 argument-hint: "<下書きのパス>"
 allowed-tools:
@@ -111,7 +111,7 @@ apply が出す `⚠` は、変換はせずに知らせるだけの項目です�
 | 画像のパス | ローカルの参照を `https://${user_config.cdn_domain}/<slug>/<file>` に置き換え |
 | Wikilink | `[[a]]` → `a`、`[[a\|b]]` → `b`（消さずにテキストにする） |
 | Callout | `> [!note\|info\|tip]` → `:::note info`、`warning\|caution` → `warn`、`danger\|error\|failure` → `alert`。対応表に無い種別は普通の引用のまま |
-| Obsidian のコメント | `%% ... %%`（ブロック・インライン）を除く。執筆メモを Qiita に出さないため |
+| コメント | Obsidian の `%% ... %%` と HTML の `<!-- ... -->` を除く。行をまたいでもよく、開始や終了と同じ行にある文は残す。コードブロックとインラインコードの中は対象外。閉じていないコメントは警告を出し、以降を除く。執筆メモを Qiita に出さないため（Qiita の画面に出ない HTML のコメントも、記事の Markdown を表示すると見える） |
 | コードブロック | コメントを含む ` ```json ` を ` ```js ` にする（Qiita のハイライトが崩れるため） |
 | H1 の削除 | frontmatter の title が記事のタイトルになるので、先頭の `# ` 行を消す |
 | フェンスの保護 | コードブロックの中身は変換しない |
