@@ -28,7 +28,7 @@ Qiita の organization は人間が Qiita の画面で付けるので、スキ�
 | 画像パス | ローカル参照を `https://<CDN ドメイン>/<slug>/<file>` に置換 |
 | Wikilink | `[[a]]` → `a`、`[[a\|b]]` → `b`（削除ではなくテキスト化） |
 | Callout | `> [!note\|info\|tip]` → `:::note info`、`warning\|caution` → `warn`、`danger\|error\|failure` → `alert` |
-| Obsidian コメント | `%% ... %%` を除去。執筆メモを Qiita に漏らさない |
+| コメント | Obsidian の `%% ... %%` と HTML の `<!-- ... -->` を除去。行をまたいでもよく、開始や終了と同じ行にある文は残す。コードブロックとインラインコードの中は対象外。執筆メモを Qiita に漏らさない |
 | コードブロック | コメントを含む ` ```json ` を ` ```js ` に変更（Qiita のハイライトが壊れるため） |
 | H1 削除 | frontmatter の title が記事タイトルになるため先頭の `# ` 行を削除 |
 | フェンス保護 | コードブロックの中身は一切変換しない |

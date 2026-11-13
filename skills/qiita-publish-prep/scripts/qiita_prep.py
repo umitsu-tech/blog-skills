@@ -265,8 +265,13 @@ def transform(body: str, slug: str, url_for: dict):
     warns = []
     lines = body.splitlines()
 
-    # 0) Obsidian の %% コメントを除去(執筆メモを Qiita に漏らさない)
-    lines, counts["comment"] = strip_obsidian_comments(lines, fence_mask(lines))
+    # 0) Obsidian の %% と HTML の <!-- --> のコメントを除去(執筆メモを Qiita に漏らさない)
+    for open_tok, close_tok in (("%%", "%%"), ("<!--", "-->")):
+        lines, found, unclosed = strip_comments(lines, fence_mask(lines), open_tok, close_tok)
+        counts["comment"] += found
+        if unclosed:
+            warns.append(f"閉じていない {open_tok} コメントがあります。"
+                         "以降をすべてコメントとして除きました")
     mask = fence_mask(lines)
 
     # 1) コードフェンスの言語指定(json→js / 未指定の警告)
@@ -377,35 +382,58 @@ def _block_has_comment(lines, open_idx):
     return False
 
 
-def strip_obsidian_comments(lines, mask):
-    """Obsidian の %% コメント(ブロック/インライン)を落とす。下書きには
-    執筆メモが %% で埋め込まれているため、Qiita 出力に漏らしてはいけない。"""
-    out, i, n, in_block = [], 0, 0, False
-    while i < len(lines):
-        line = lines[i]
+INLINE_CODE = re.compile(r"(`+)(?:(?!\1).)+?\1")
+
+
+def _find_outside_code(line, token, pos, spans):
+    """line の pos 以降で token を探す。インラインコードの中にあるものは飛ばす。"""
+    while True:
+        j = line.find(token, pos)
+        if j < 0:
+            return -1
+        span = next(((a, b) for a, b in spans if a <= j < b), None)
+        if span is None:
+            return j
+        pos = span[1]
+
+
+def strip_comments(lines, mask, open_tok, close_tok):
+    """open_tok から close_tok までをコメントとして落とす(Obsidian の %% や HTML の <!-- -->)。
+    下書きには執筆メモがコメントで埋め込まれているため、Qiita 出力に漏らしてはいけない。
+
+    開始と終了は行の中のどこにあってもよく、行をまたいでもよい。開始や終了と同じ行に
+    ある文は残す。コードブロックとインラインコードの中は対象外。
+    戻り値: (行, 除いたコメントの数, 最後まで閉じていなかったか)"""
+    out, n, in_block = [], 0, False
+    for i, line in enumerate(lines):
         if mask[i] and not in_block:
             out.append(line)
-            i += 1
             continue
-        if in_block:
-            if line.strip() == "%%":
-                in_block = False
-            i += 1
-            continue
-        if line.strip() == "%%":
-            in_block, n = True, n + 1
-            i += 1
-            continue
-        stripped = re.sub(r"%%.*?%%", "", line)
-        if stripped != line:
-            n += 1
-            stripped = re.sub(r"[ \t]{2,}", " ", stripped).rstrip()
-            if not stripped.strip():
-                i += 1
+        spans = [(m.start(), m.end()) for m in INLINE_CODE.finditer(line)]
+        buf, pos, touched = [], 0, in_block
+        while True:
+            if in_block:
+                j = line.find(close_tok, pos)
+                if j < 0:
+                    break
+                in_block, pos = False, j + len(close_tok)
                 continue
-        out.append(stripped)
-        i += 1
-    return out, n
+            j = _find_outside_code(line, open_tok, pos, spans)
+            if j < 0:
+                buf.append(line[pos:])
+                break
+            buf.append(line[pos:j])
+            in_block, touched, n = True, True, n + 1
+            pos = j + len(open_tok)
+        if not touched:
+            out.append(line)
+            continue
+        text = "".join(buf)
+        lead = re.match(r"[ \t]*", text).group(0)
+        text = (lead + re.sub(r"[ \t]{2,}", " ", text[len(lead):])).rstrip()
+        if text.strip():
+            out.append(text)
+    return out, n, in_block
 
 
 CALLOUT_HEAD = re.compile(r"^\s*>\s*\[!(\w+)\][-+]?\s*(.*)$")
@@ -563,7 +591,7 @@ def cmd_inspect(env: Env, args):
     print("■ 変換対象(件数)")
     print(f"  Wikilink テキスト化: {counts['wikilink']} / Callout: {counts['callout']} "
           f"/ json→js: {counts['json_to_js']} / H1削除: {counts['h1']} "
-          f"/ %%コメント除去: {counts['comment']}")
+          f"/ コメント除去(%% と <!-- -->): {counts['comment']}")
     if warns:
         print()
         print("■ 警告")
@@ -736,7 +764,7 @@ def cmd_apply(env: Env, args):
     print(f"  frontmatter: private={'true' if private else 'false'}, "
           f"id={qiita_id or 'null'}, organization={organization or 'null'}")
     if counts["comment"]:
-        print(f"  %% コメント除去: {counts['comment']} 箇所")
+        print(f"  コメント除去(%% と <!-- -->): {counts['comment']} 箇所")
     if not private:
         print("  ⚠ private: false で出力しています(本公開扱い)")
     for w in warns:
