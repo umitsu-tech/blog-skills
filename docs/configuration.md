@@ -17,13 +17,24 @@
 
 ## 手順書からの参照のしかた
 
-SKILL.md では `${user_config.articles_dir}` のように書くと、Claude Code が読み込むときに設定値へ置き換えます。同梱スクリプトの場所は `${CLAUDE_PLUGIN_ROOT}` で指します。プラグインは更新のたびに別のディレクトリへ展開されるので、パスを決め打ちしません。
+SKILL.md では `${user_config.articles_dir}` のように書くと、Claude Code が読み込むときに設定値へ置き換えます。同梱スクリプトの場所は、スキルのディレクトリを指す `${CLAUDE_SKILL_DIR}` で指します。プラグインは更新のたびに別のディレクトリへ展開されるので、パスを決め打ちしません。
+
+`${CLAUDE_SKILL_DIR}` は frontmatter の `allowed-tools` の中でも同じ値に置き換わります。本文のコマンドと同じ形で `Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py *)` のように書くと、そのスクリプトだけを確認なしで実行でき、ほかの python3 や sh のコマンドはふつうの許可設定に従います。本文と `allowed-tools` で書き方（クォートの有無も含めて）をそろえないと、許可が効きません。
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" inspect <slug> \
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py inspect <slug> \
   --articles-dir "${user_config.articles_dir}" --qiita-dir "${user_config.qiita_dir}" \
   --obsidian-dir "${user_config.obsidian_dir}"
 ```
+
+## allowed-tools の確かめ方
+
+`allowed-tools` が効いているかは、`sh tests/check-allowed-tools.sh` で確かめます。`claude -p` を `--permission-mode dontAsk` で動かすと、前もって許可されていないツールは確認を出さずに断られ、結果に残ります。これを使って、次の 2 つを見ます。
+
+- 試験用のプラグイン（`tests/permission-probe/plugin`）で、許可の仕組みがドキュメントどおりに動くか。許可ありとヒアドキュメントは通り、許可なしと本文だけクォートを付けたものは断られる
+- インストール済みの blog-skills の 4 つのスキルで、同梱スクリプトが実行され、断られないか
+
+ブランチの変更を確かめるときは、インストール済みのプラグインの読み込み元をそのブランチにしてから実行します。ファイルを書き換える操作は呼ばない作りで、1 回の実行で `claude -p` を 8 回呼びます（haiku で合わせて数セント）。
 
 ## スクリプトを手で動かす
 

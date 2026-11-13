@@ -4,7 +4,7 @@ description: draw.io の図（.drawio）を、draw.io デスクトップアプ�
 when_to_use: 記事や README に貼る図を .drawio から PNG にしたいとき。「drawio を PNG にして」「図を書き出して」「drawio をエクスポートして」など。
 argument-hint: "[drawio ファイル（省略時はすべて）] [--transparent]"
 allowed-tools:
-  - Bash(sh *)
+  - Bash(sh ${CLAUDE_SKILL_DIR}/scripts/export.sh *)
   - Read
 ---
 
@@ -12,10 +12,12 @@ allowed-tools:
 
 ## 手順
 
+同梱スクリプトは、下に書いた形のまま 1 つのコマンドとして実行します。`; echo` や `&&` で別のコマンドをつなげたり、パスをクォートで囲んだりすると、allowed-tools の許可が効かずに確認が出るためです。
+
 1. 同梱のスクリプトで書き出します。ファイルと `--transparent` は、指定されたものだけを渡します。
 
    ```bash
-   sh "${CLAUDE_PLUGIN_ROOT}/skills/export-drawio/scripts/export.sh" [--transparent] [ファイル.drawio ...]
+   sh ${CLAUDE_SKILL_DIR}/scripts/export.sh [--transparent] [ファイル.drawio ...]
    ```
 
    - ファイルを省略すると、カレントディレクトリ以下の .drawio をすべて書き出します（.git と node_modules の中は除く）

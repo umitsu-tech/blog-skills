@@ -6,7 +6,7 @@ argument-hint: "<記事ファイルのパス>"
 allowed-tools:
   - Read
   - Write
-  - Bash(sh *)
+  - Bash(sh ${CLAUDE_SKILL_DIR}/scripts/pick-references.sh *)
   - WebSearch
 ---
 
@@ -16,12 +16,14 @@ allowed-tools:
 
 ## 手順
 
+同梱スクリプトは、下に書いた形のまま 1 つのコマンドとして実行します。`; echo` や `&&` で別のコマンドをつなげたり、パスをクォートで囲んだりすると、allowed-tools の許可が効かずに確認が出るためです。
+
 1. 対象の下書き（`$ARGUMENTS`）を Read します。引数が無ければ「レビュー対象のファイルパスを指定してください」と伝えて終わります。
 2. 文体ルール `${user_config.style_file}` を、ほかの資料より先に読みます。未設定かファイルが無いときは、[references/my-style.md](references/my-style.md) をひな形に自分の文体ルールを書き、`/plugin configure blog-skills@ryuki-plugins` で登録するよう案内して終わります。
 3. 過去記事の候補をスクリプトで出し、レビュー対象とジャンルが近い記事を 2〜3 本 Read します。ジャンルを決めにくいときは「新しい順」の 3 本を読みます。
 
    ```bash
-   sh "${CLAUDE_PLUGIN_ROOT}/skills/review-blog/scripts/pick-references.sh" "${user_config.articles_dir}/published"
+   sh ${CLAUDE_SKILL_DIR}/scripts/pick-references.sh "${user_config.articles_dir}/published"
    ```
 
    スクリプトは published/ の下にある 5KB 以上の記事を、ファイル名でトラブルシュート系（しない・できない・表示されない）、実装・手順系（してみた・を作る・する）、解説系（とは・について）に分け、それぞれ新しい順に並べます。

@@ -4,8 +4,8 @@ description: Qiita で本公開した記事の後片付けをします。下書�
 when_to_use: npx qiita publish で本公開を済ませたあと。「アーカイブして」「公開後の後片付けをして」「published に移して」など。qiita-publish-prep の次の段階です。
 argument-hint: "<下書きのパス または slug>"
 allowed-tools:
-  - Bash(python3 *)
-  - Bash(sh *)
+  - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py *)
+  - Bash(sh ${CLAUDE_SKILL_DIR}/scripts/board.sh *)
   - Read
 ---
 
@@ -28,10 +28,12 @@ frontmatter の更新とファイルの移動は `qiita_archive.py`、board.md �
 
 ## 手順
 
+同梱スクリプトは、下に書いた形のまま 1 つのコマンドとして実行します。`; echo` や `&&` で別のコマンドをつなげたり、パスをクォートで囲んだりすると、allowed-tools の許可が効かずに確認が出るためです。
+
 ### 1. 確認
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" inspect <下書きのパス | slug> <共通オプション>
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py inspect <下書きのパス | slug> <共通オプション>
 ```
 
 ファイルは変更しません。slug を渡すと、記事リポジトリ（旧置き場が設定されていればそこも）から下書きを探します。候補が複数またはゼロのときは止まるので、そのことをユーザーに伝えます。
@@ -46,7 +48,7 @@ python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" in
 ### 2. 実行
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" apply <下書きのパス | slug> <共通オプション> [--allow-private] [--dry-run]
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py apply <下書きのパス | slug> <共通オプション> [--allow-private] [--dry-run]
 ```
 
 下書きの frontmatter に `status: published` / `qiita_id` / `published_at` を書き、下書きとレビューレポート（`*.review.md`）を記事リポジトリの `published/` へ移します。`published_at` に値があればそのまま残すので、再実行しても公開日は変わりません。
@@ -64,7 +66,7 @@ python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" ap
 文面が決まったら `board.sh` で書き換えます。
 
 ```bash
-sh "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/board.sh" "${user_config.articles_dir}/board.md" \
+sh ${CLAUDE_SKILL_DIR}/scripts/board.sh "${user_config.articles_dir}/board.md" \
   --row '<下書きのファイル名>' --summary '<一行の要約>' [--date YYYY-MM-DD] --log - <<'EOF'
 <完了ログの本文>
 EOF
