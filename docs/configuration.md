@@ -17,10 +17,12 @@
 
 ## 手順書からの参照のしかた
 
-SKILL.md では `${user_config.articles_dir}` のように書くと、Claude Code が読み込むときに設定値へ置き換えます。同梱スクリプトの場所は `${CLAUDE_PLUGIN_ROOT}` で指します。プラグインは更新のたびに別のディレクトリへ展開されるので、パスを決め打ちしません。
+SKILL.md では `${user_config.articles_dir}` のように書くと、Claude Code が読み込むときに設定値へ置き換えます。同梱スクリプトの場所は、スキルのディレクトリを指す `${CLAUDE_SKILL_DIR}` で指します。プラグインは更新のたびに別のディレクトリへ展開されるので、パスを決め打ちしません。
+
+`${CLAUDE_SKILL_DIR}` は frontmatter の `allowed-tools` の中でも同じ値に置き換わります。本文のコマンドと同じ形で `Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py *)` のように書くと、そのスクリプトだけを確認なしで実行でき、ほかの python3 や sh のコマンドはふつうの許可設定に従います。本文と `allowed-tools` で書き方（クォートの有無も含めて）をそろえないと、許可が効きません。
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-archive/scripts/qiita_archive.py" inspect <slug> \
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_archive.py inspect <slug> \
   --articles-dir "${user_config.articles_dir}" --qiita-dir "${user_config.qiita_dir}" \
   --obsidian-dir "${user_config.obsidian_dir}"
 ```

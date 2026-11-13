@@ -4,7 +4,7 @@ description: 記事リポジトリの下書きを Qiita CLI 用に変換し、Qi
 when_to_use: 下書きを Qiita に限定共有で投稿する前の準備と、公開済みの記事を直して出力し直すとき。「Qiita 用に変換して」「投稿の準備をして」「Qiita に出せる形にして」など。本公開のあとの後片付けは qiita-archive が受け持ちます。
 argument-hint: "<下書きのパス>"
 allowed-tools:
-  - Bash(python3 *)
+  - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_prep.py *)
   - Read
   - Glob
 ---
@@ -39,7 +39,7 @@ allowed-tools:
 ### 1. 解析
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-publish-prep/scripts/qiita_prep.py" inspect <下書きのパス> <共通オプション>
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_prep.py inspect <下書きのパス> <共通オプション>
 ```
 
 frontmatter、画像の参照とその所在、変換の対象の件数、警告を出します。ファイルは変更しません。`--json` を付けると機械可読の出力になります。引数が無いときやファイルが無いときは、対象のパスをユーザーに聞いて終わります。
@@ -58,7 +58,7 @@ organization を付けるかどうかは聞きません。organization はユー
 ### 3. 実行
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/qiita-publish-prep/scripts/qiita_prep.py" apply <下書きのパス> <共通オプション> \
+python3 ${CLAUDE_SKILL_DIR}/scripts/qiita_prep.py apply <下書きのパス> <共通オプション> \
   [--slug SLUG] [--rename 旧=新]... [--organization NAME] [--skip-sync] [--dry-run]
 ```
 

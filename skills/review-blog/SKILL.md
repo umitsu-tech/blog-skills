@@ -6,7 +6,7 @@ argument-hint: "<記事ファイルのパス>"
 allowed-tools:
   - Read
   - Write
-  - Bash(sh *)
+  - Bash(sh ${CLAUDE_SKILL_DIR}/scripts/pick-references.sh *)
   - WebSearch
 ---
 
@@ -21,7 +21,7 @@ allowed-tools:
 3. 過去記事の候補をスクリプトで出し、レビュー対象とジャンルが近い記事を 2〜3 本 Read します。ジャンルを決めにくいときは「新しい順」の 3 本を読みます。
 
    ```bash
-   sh "${CLAUDE_PLUGIN_ROOT}/skills/review-blog/scripts/pick-references.sh" "${user_config.articles_dir}/published"
+   sh ${CLAUDE_SKILL_DIR}/scripts/pick-references.sh "${user_config.articles_dir}/published"
    ```
 
    スクリプトは published/ の下にある 5KB 以上の記事を、ファイル名でトラブルシュート系（しない・できない・表示されない）、実装・手順系（してみた・を作る・する）、解説系（とは・について）に分け、それぞれ新しい順に並べます。
